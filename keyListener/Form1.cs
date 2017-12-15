@@ -34,9 +34,9 @@ namespace keyListener {
             bool mediaPressed = true;
             string route = "";
             switch((Keys)vkCode) {
-                case Keys.MediaPlayPause:
-                    route = "PlayPause";
-                    break;
+                //case Keys.MediaPlayPause:
+                //    route = "PlayPause";
+                //    break;
                 case Keys.MediaNextTrack:
                     route = "NextTrack";
                     break;
@@ -48,7 +48,9 @@ namespace keyListener {
                     break;
             }
             if(mediaPressed) {
-                var request = (HttpWebRequest)WebRequest.Create("localhost:8000/" + route);
+                string URL = "http://localhost:3000/" + route;
+                Console.WriteLine(URL);
+                var request = (HttpWebRequest)WebRequest.Create(URL);
 
                 var postData = "request=true";
 
@@ -58,12 +60,16 @@ namespace keyListener {
                 request.ContentType = "application/x-www-form-urlencoded";
                 request.ContentLength = data.Length;
 
-                using (var stream = request.GetRequestStream()) {
-                    stream.Write(data, 0, data.Length);
-                }
+                try {
+                    using (var stream = request.GetRequestStream()) {
+                        stream.Write(data, 0, data.Length);
+                    }
 
-                var response = (HttpWebResponse)request.GetResponse();
-                var respocseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
+                    var response = (HttpWebResponse)request.GetResponse();
+                    var respocseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
+                } catch(Exception ex) {
+
+                }
             }
         }
 
