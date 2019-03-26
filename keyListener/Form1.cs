@@ -4,13 +4,19 @@ using System.Net;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using Newtonsoft.Json;
 
 namespace keyListener {
     public partial class Form1 : Form {
         private bool allowVisible = false;
         private bool allowClose = false;
+        private string token = null;
+
+        Dictionary<string, string> config;
 
         public Form1() {
+            string path = Path.Combine(Environment.CurrentDirectory, "config.json");
+            config = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(path, Encoding.UTF8));
             InitializeComponent();
         }
 
@@ -34,9 +40,6 @@ namespace keyListener {
             bool mediaPressed = true;
             string route = "";
             switch((Keys)vkCode) {
-                //case Keys.MediaPlayPause:
-                //    route = "PlayPause";
-                //    break;
                 case Keys.MediaNextTrack:
                     route = "NextTrack";
                     break;
@@ -47,13 +50,51 @@ namespace keyListener {
                     mediaPressed = false;
                     break;
             }
+
             if(mediaPressed) {
-                string URL = "http://localhost:3000/" + route;
-                Console.WriteLine(URL);
+                if(config.Count > 0 && token != null) {
+                    string URL = "http://" + config["server_ip"] + ":" + config["server_port"] + "/api/" + route;
+                    var request = (HttpWebRequest)WebRequest.Create(URL);
+
+                    var postData = "request=true";
+
+                    var data = Encoding.ASCII.GetBytes(postData);
+
+                    request.Method = "POST";
+                    request.ContentType = "application/x-www-form-urlencoded";
+                    request.Headers.Add("Authorization", token);
+                    request.ContentLength = data.Length;
+
+                    try {
+                        using (var stream = request.GetRequestStream()) {
+                            stream.Write(data, 0, data.Length);
+                        }
+
+                        var response = (HttpWebResponse)request.GetResponse();
+                        var respocseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
+                    } catch (Exception ex) {
+
+                    }
+                }
+            }
+        }
+
+        private void AboutToolStripMenuItem_Click(object sender, EventArgs e) {
+            allowVisible = true;
+            Show();
+        }
+
+        private void QuitToolStripMenuItem_Click(object sender, EventArgs e) {
+            allowClose = true;
+            Application.Exit();
+        }
+
+        private void getTokenToolStripMenuItem_Click(object sender, EventArgs e) {
+            if (config.Count > 0) {
+                string URL = "http://" + config["server_ip"] + ":" + config["server_port"] + "/auth/login";
                 var request = (HttpWebRequest)WebRequest.Create(URL);
 
-                var postData = "request=true";
-
+                var postData = "email="+config["email"] + "&password=" + config["password"];
                 var data = Encoding.ASCII.GetBytes(postData);
 
                 request.Method = "POST";
@@ -67,20 +108,33 @@ namespace keyListener {
 
                     var response = (HttpWebResponse)request.GetResponse();
                     var respocseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
-                } catch(Exception ex) {
 
+                    Response jsonResp = JsonConvert.DeserializeObject<Response>(respocseString.ToString());
+
+                    if (jsonResp.success == true) {
+                        token = jsonResp.token;
+                    }
+                } catch (Exception ex) {
                 }
             }
         }
+        public class Response {
+            public class User {
+                [JsonProperty("name")]
+                public string name { get; set; }
+            }
 
-        private void AboutToolStripMenuItem_Click(object sender, EventArgs e) {
-            allowVisible = true;
-            Show();
-        }
+            [JsonProperty("success")]
+            public bool success { get; set; }
 
-        private void QuitToolStripMenuItem_Click(object sender, EventArgs e) {
-            allowClose = true;
-            Application.Exit();
+            [JsonProperty("message")]
+            public string message { get; set; }
+
+            [JsonProperty("token")]
+            public string token { get; set; }
+            
+            [JsonProperty("gameserver")]    
+            public User user { get; set; }
         }
     }
 }
